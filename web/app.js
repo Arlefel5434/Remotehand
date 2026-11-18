@@ -16,8 +16,61 @@
   let socket;
   let reconnectAttempt = 0;
   let reconnectTimer;
+  const pad = document.querySelector("#pad");
+  let gesture = null;
+  let frame = 0;
+  function resetGesture() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    gesture = null;
+  }
+  function flushMotion() {
+    frame = 0;
+    if (!gesture || !gesture.moved) return;
+    const dx = Math.round(gesture.x - gesture.sentX);
+    const dy = Math.round(gesture.y - gesture.sentY);
+    if (dx || dy) {
+      const limit = n => Math.max(-200, Math.min(200, n));
+      send("move", { dx: limit(dx), dy: limit(dy) });
+      gesture.sentX += dx;
+      gesture.sentY += dy;
+    }
+  }
+  function track(event) {
+    gesture.x = event.clientX;
+    gesture.y = event.clientY;
+    if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) > 4) gesture.moved = true;
+  }
+  pad.onpointerdown = event => {
+    if (!event.isPrimary) { resetGesture(); return; }
+    if (event.button !== 0 || socket?.readyState !== WebSocket.OPEN) return;
+    resetGesture();
+    pad.setPointerCapture(event.pointerId);
+    gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY,
+      sentX: event.clientX, sentY: event.clientY, moved: false, startTime: event.timeStamp };
+  };
+  pad.onpointermove = event => {
+    if (gesture?.id !== event.pointerId) return;
+    track(event);
+    if (!frame && gesture.moved) frame = requestAnimationFrame(flushMotion);
+  };
+  pad.onpointerup = event => {
+    if (gesture?.id !== event.pointerId) return;
+    track(event);
+    cancelAnimationFrame(frame);
+    if (gesture.moved) flushMotion();
+    else if (event.timeStamp - gesture.startTime <= 300) send("click", { button: "left" });
+    resetGesture();
+  };
+  pad.onpointercancel = pad.onlostpointercapture = event => {
+    if (gesture?.id === event.pointerId) resetGesture();
+  };
+  document.querySelectorAll("[data-button]").forEach(button => {
+    button.onclick = () => send("click", { button: button.dataset.button });
+  });
 
   function setConnected(connected) {
+    resetGesture();
     status.textContent = connected ? "Подключено" : "Нет связи";
     status.classList.toggle("connected", connected);
     controls.forEach((control) => { control.disabled = !connected; });

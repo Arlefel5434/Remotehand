@@ -65,6 +65,22 @@ button {
 button:active { transform: translateY(1px); }
 button:disabled { opacity: .45; }
 .primary { width: 100%; background: #2563eb; }
+#pad {
+  display: grid;
+  align-content: center;
+  height: clamp(10rem, 33dvh, 20rem);
+  padding: 1rem;
+  border: 1px solid #475569;
+  border-radius: 1rem;
+  background: #172338;
+  color: #cbd5e1;
+  text-align: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.mouse-buttons { margin: .6rem 0 1.5rem; }
 .key-row button { flex: 1; }
 .message { min-height: 1.25rem; color: #fca5a5; font-size: .9rem; }
 

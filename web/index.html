@@ -12,11 +12,16 @@
       <header>
         <div>
           <p class="eyebrow">Remotehand</p>
-          <h1>Клавиатура</h1>
+          <h1>Тачпад</h1>
         </div>
         <span id="status" class="status" aria-live="polite">Подключение…</span>
       </header>
 
+      <div id="pad">Ведите пальцем для движения курсора.<br>Коснитесь для левого клика.</div>
+      <div class="key-row mouse-buttons">
+        <button type="button" data-button="left" disabled>Левый клик</button>
+        <button type="button" data-button="right" disabled>Правый клик</button>
+      </div>
       <form id="text-form">
         <label for="text-input">Текст для активного окна Windows</label>
         <textarea
