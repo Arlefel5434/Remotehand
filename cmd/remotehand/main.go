@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -50,6 +51,9 @@ func run() error {
 		Keyboard:    adapter,
 		Fallback:    server.LoggingSink{Logger: config.Logger},
 		Sensitivity: sensitivity,
+	}
+	if runtime.GOOS == "windows" {
+		config.OnListening = showPhoneLinks
 	}
 	log.Printf("starting Remotehand version=%s address=%s input_adapter=%s sensitivity=%.2f", config.Version, config.ListenAddress, adapter.Name(), sensitivity)
 

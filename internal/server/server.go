@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Arlefel5434/Remotehand/internal/input"
 	"log"
+	"net"
 	"net/http"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 // Config defines the public HTTP endpoint and shutdown behavior.
 type Config struct {
+	OnListening     func(net.Addr)
 	Volume          input.VolumeController
 	ListenAddress   string
 	Version         string
@@ -59,9 +61,16 @@ func Run(ctx context.Context, config Config) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	listener, err := net.Listen("tcp", config.ListenAddress)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+	if config.OnListening != nil {
+		config.OnListening(listener.Addr())
+	}
 	serverErr := make(chan error, 1)
 	go func() {
-		serverErr <- httpServer.ListenAndServe()
+		serverErr <- httpServer.Serve(listener)
 	}()
 
 	select {
@@ -80,7 +89,7 @@ func Run(ctx context.Context, config Config) error {
 		return fmt.Errorf("shut down HTTP server: %w", err)
 	}
 
-	err := <-serverErr
+	err = <-serverErr
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve HTTP after shutdown: %w", err)
 	}
