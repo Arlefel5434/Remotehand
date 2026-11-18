@@ -25,6 +25,12 @@ func (d CommandDispatcher) Handle(ctx context.Context, command protocol.Command)
 	}
 
 	switch command.Type {
+	case protocol.TypeScroll:
+		p, ok := command.Payload.(protocol.ScrollPayload)
+		if !ok {
+			return fmt.Errorf("unexpected scroll payload")
+		}
+		return d.Pointer.Scroll(p.Steps)
 	case protocol.TypeMove:
 		payload, ok := command.Payload.(protocol.MovePayload)
 		if !ok {

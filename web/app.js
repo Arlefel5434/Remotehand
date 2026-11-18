@@ -18,11 +18,15 @@
   let reconnectTimer;
   const pad = document.querySelector("#pad");
   let gesture = null;
+  const fingers = new Map();
+  let scrollDistance = 0;
   let frame = 0;
   function resetGesture() {
     cancelAnimationFrame(frame);
     frame = 0;
     gesture = null;
+    fingers.clear();
+    scrollDistance = 0;
   }
   function flushMotion() {
     frame = 0;
@@ -42,19 +46,40 @@
     if (Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) > 4) gesture.moved = true;
   }
   pad.onpointerdown = event => {
-    if (!event.isPrimary) { resetGesture(); return; }
     if (event.button !== 0 || socket?.readyState !== WebSocket.OPEN) return;
-    resetGesture();
     pad.setPointerCapture(event.pointerId);
+    fingers.set(event.pointerId,event.clientY);
+    if (fingers.size > 1 || !event.isPrimary) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      gesture = null;
+      scrollDistance = 0;
+      return;
+    }
     gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY,
       sentX: event.clientX, sentY: event.clientY, moved: false, startTime: event.timeStamp };
   };
   pad.onpointermove = event => {
+    if (!fingers.has(event.pointerId)) return;
+    const previousY = fingers.get(event.pointerId);
+    fingers.set(event.pointerId,event.clientY);
+    if (fingers.size === 2) {
+      // The midpoint moves by half of each contact's displacement.
+      scrollDistance += (event.clientY - previousY) / 2;
+      const steps = Math.max(-8, Math.min(8, Math.trunc(scrollDistance / 16)));
+      if (steps) {
+        send("scroll", { steps });
+        scrollDistance %= 16;
+      }
+      return;
+    }
     if (gesture?.id !== event.pointerId) return;
     track(event);
     if (!frame && gesture.moved) frame = requestAnimationFrame(flushMotion);
   };
   pad.onpointerup = event => {
+    fingers.delete(event.pointerId);
+    scrollDistance = 0;
     if (gesture?.id !== event.pointerId) return;
     track(event);
     cancelAnimationFrame(frame);
@@ -63,6 +88,7 @@
     resetGesture();
   };
   pad.onpointercancel = pad.onlostpointercapture = event => {
+    if (fingers.delete(event.pointerId)) scrollDistance = 0;
     if (gesture?.id === event.pointerId) resetGesture();
   };
   document.querySelectorAll("[data-button]").forEach(button => {

@@ -49,6 +49,14 @@ func newWindowsPointer() (Adapter, error) {
 
 func (windowsPointer) Name() string { return "windows" }
 
+func (windowsPointer) Scroll(steps int) error {
+	const mouseEventWheel = 0x0800
+	const wheelDelta = 120
+	event := newMouseInput(0, 0, mouseEventWheel)
+	(*mouseInput)(unsafe.Pointer(&event.Data[0])).MouseData = uint32(int32(steps * wheelDelta))
+	return sendWindowsInputs([]windowsInput{event})
+}
+
 func (windowsPointer) Move(dx, dy int) error {
 	return sendWindowsInputs([]windowsInput{newMouseInput(int32(dx), int32(dy), mouseEventMove)})
 }

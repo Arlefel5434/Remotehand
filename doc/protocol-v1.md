@@ -35,6 +35,7 @@ The level is a percentage read from the current default playback endpoint.
 | Type | Payload | Limits |
 |---|---|---|
 | `move` | `{"dx":12,"dy":-4}` | integers from -200 to 200 |
+| `scroll` | `{"steps":-1}` | vertical wheel steps, −8 to 8 excluding zero. Positive scrolls up. |
 | `click` | `{"button":"left"}` | `left` or `right` |
 | `text` | `{"value":"Привет"}` | valid UTF-8, at most 2048 bytes |
 | `key` | `{"key":"enter"}` | `enter`, `backspace`, or `escape` |

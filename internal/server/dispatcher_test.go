@@ -22,6 +22,8 @@ func (p *fakePointer) Move(dx, dy int) error {
 	return p.moveErr
 }
 
+func (p *fakePointer) Scroll(int) error { return nil }
+
 func (p *fakePointer) Click(button input.Button) error {
 	p.button = button
 	return nil

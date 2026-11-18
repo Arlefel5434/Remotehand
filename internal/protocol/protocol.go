@@ -22,6 +22,7 @@ type Type string
 
 const (
 	TypeMove   Type = "move"
+	TypeScroll Type = "scroll"
 	TypeClick  Type = "click"
 	TypeText   Type = "text"
 	TypeKey    Type = "key"
@@ -36,6 +37,7 @@ type Command struct {
 }
 
 type MovePayload struct{ DX, DY int }
+type ScrollPayload struct{ Steps int }
 type ClickPayload struct{ Button string }
 type TextPayload struct{ Value string }
 type KeyPayload struct{ Key string }
@@ -101,6 +103,15 @@ func Parse(data []byte) (Command, *Violation) {
 	command := Command{Type: Type(*envelope.Type), ID: envelope.ID}
 	var violation *Violation
 	switch command.Type {
+	case TypeScroll:
+		var v struct {
+			Steps int `json:"steps"`
+		}
+		if err := decodeStrict(envelope.Payload, &v); err != nil || v.Steps == 0 || v.Steps < -8 || v.Steps > 8 {
+			violation = invalidPayload("steps must be a nonzero integer between -8 and 8")
+		} else {
+			command.Payload = ScrollPayload{Steps: v.Steps}
+		}
 	case TypeMove:
 		command.Payload, violation = parseMove(envelope.Payload)
 	case TypeClick:

@@ -11,6 +11,7 @@ const (
 
 // PointerController applies relative movement and complete button clicks.
 type PointerController interface {
+	Scroll(steps int) error
 	Move(dx, dy int) error
 	Click(button Button) error
 }
@@ -41,6 +42,7 @@ type namedAdapter string
 
 func (a namedAdapter) Name() string        { return string(a) }
 func (namedAdapter) Move(int, int) error   { return nil }
+func (namedAdapter) Scroll(int) error      { return nil }
 func (namedAdapter) Click(Button) error    { return nil }
 func (namedAdapter) SendText(string) error { return nil }
 func (namedAdapter) PressKey(Key) error    { return nil }
