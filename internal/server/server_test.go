@@ -1,10 +1,16 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/Arlefel5434/Remotehand/internal/protocol"
 )
 
 func TestHealth(t *testing.T) {
@@ -12,7 +18,7 @@ func TestHealth(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 
-	NewHandler("test-version").ServeHTTP(response, request)
+	NewHandler(context.Background(), testConfig("test-version", discardSink{})).ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
@@ -35,7 +41,7 @@ func TestHealthRejectsOtherMethods(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/health", nil)
 	response := httptest.NewRecorder()
 
-	NewHandler("dev").ServeHTTP(response, request)
+	NewHandler(context.Background(), testConfig("dev", discardSink{})).ServeHTTP(response, request)
 
 	if response.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusMethodNotAllowed)
@@ -47,9 +53,23 @@ func TestUnknownPath(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/unknown", nil)
 	response := httptest.NewRecorder()
 
-	NewHandler("dev").ServeHTTP(response, request)
+	NewHandler(context.Background(), testConfig("dev", discardSink{})).ServeHTTP(response, request)
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
+type discardSink struct{}
+
+func (discardSink) Handle(context.Context, protocol.Command) error { return nil }
+
+func testConfig(version string, sink CommandSink) Config {
+	return Config{
+		Version:      version,
+		PingInterval: time.Hour,
+		PongTimeout:  time.Second,
+		Sink:         sink,
+		Logger:       log.New(io.Discard, "", 0),
 	}
 }

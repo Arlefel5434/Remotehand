@@ -34,7 +34,11 @@ func run() error {
 		ListenAddress:   envOrDefault("REMOTEHAND_LISTEN_ADDR", ":8080"),
 		Version:         version,
 		ShutdownTimeout: 5 * time.Second,
+		PingInterval:    20 * time.Second,
+		PongTimeout:     5 * time.Second,
+		Logger:          log.Default(),
 	}
+	config.Sink = server.LoggingSink{Logger: config.Logger}
 	log.Printf("starting Remotehand version=%s address=%s input_adapter=%s", config.Version, config.ListenAddress, adapter.Name())
 
 	return server.Run(ctx, config)

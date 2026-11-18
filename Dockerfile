@@ -6,10 +6,11 @@ FROM golang:${GO_VERSION}-alpine AS dev
 
 RUN addgroup -g 1000 remotehand \
     && adduser -D -u 1000 -G remotehand remotehand \
-    && mkdir -p /workspace /go/pkg/mod /home/remotehand/.cache/go-build \
-    && chown -R remotehand:remotehand /workspace /go/pkg/mod /home/remotehand
+    && mkdir -p /workspace /home/remotehand/go/pkg/mod /home/remotehand/.cache/go-build \
+    && chown -R remotehand:remotehand /workspace /home/remotehand
 
 ENV GOCACHE=/home/remotehand/.cache/go-build
+ENV GOPATH=/home/remotehand/go
 WORKDIR /workspace
 USER remotehand
 

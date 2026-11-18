@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -14,6 +15,10 @@ type Config struct {
 	ListenAddress   string
 	Version         string
 	ShutdownTimeout time.Duration
+	PingInterval    time.Duration
+	PongTimeout     time.Duration
+	Sink            CommandSink
+	Logger          *log.Logger
 }
 
 type healthResponse struct {
@@ -21,28 +26,30 @@ type healthResponse struct {
 	Version string `json:"version"`
 }
 
-// NewHandler returns the minimal HTTP surface for the current MVP stage.
-func NewHandler(version string) http.Handler {
+func NewHandler(connectionContext context.Context, config Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(healthResponse{Status: "ok", Version: version})
+		_ = json.NewEncoder(w).Encode(healthResponse{Status: "ok", Version: config.Version})
+	})
+	gate := &connectionGate{}
+	mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
+		handleWebSocket(connectionContext, config, gate, w, r)
 	})
 	return mux
 }
 
 // Run serves HTTP until the context is cancelled, then shuts down gracefully.
 func Run(ctx context.Context, config Config) error {
-	if config.ListenAddress == "" {
-		return errors.New("listen address is required")
+	if err := validateConfig(config); err != nil {
+		return err
 	}
-	if config.ShutdownTimeout <= 0 {
-		return errors.New("shutdown timeout must be positive")
-	}
+	connectionContext, closeConnections := context.WithCancel(context.Background())
+	defer closeConnections()
 
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
-		Handler:           NewHandler(config.Version),
+		Handler:           NewHandler(connectionContext, config),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -61,6 +68,7 @@ func Run(ctx context.Context, config Config) error {
 	case <-ctx.Done():
 	}
 
+	closeConnections()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -70,6 +78,19 @@ func Run(ctx context.Context, config Config) error {
 	err := <-serverErr
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serve HTTP after shutdown: %w", err)
+	}
+	return nil
+}
+
+func validateConfig(config Config) error {
+	if config.ListenAddress == "" {
+		return errors.New("listen address is required")
+	}
+	if config.ShutdownTimeout <= 0 || config.PingInterval <= 0 || config.PongTimeout <= 0 {
+		return errors.New("shutdown, ping, and pong timeouts must be positive")
+	}
+	if config.Sink == nil || config.Logger == nil {
+		return errors.New("command sink and logger are required")
 	}
 	return nil
 }
