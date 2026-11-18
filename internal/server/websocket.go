@@ -66,7 +66,7 @@ func handleWebSocket(parent context.Context, config Config, gate *connectionGate
 	pingErr := make(chan error, 1)
 	go heartbeat(ctx, connection, config.PingInterval, config.PongTimeout, pingErr)
 	readErr := make(chan error, 1)
-	go func() { readErr <- readCommands(ctx, connection, config.Sink) }()
+	go func() { readErr <- readCommands(ctx, connection, config) }()
 
 	config.Logger.Printf("connection opened remote=%s", r.RemoteAddr)
 	select {
@@ -110,7 +110,21 @@ func heartbeat(ctx context.Context, connection *websocket.Conn, interval, timeou
 	}
 }
 
-func readCommands(ctx context.Context, connection *websocket.Conn, sink CommandSink) error {
+func readCommands(ctx context.Context, connection *websocket.Conn, config Config) error {
+	publishVolume := func(id string, delta int, muted *bool) error {
+		state, err := config.Volume.UpdateVolume(delta, muted)
+		if err != nil {
+			return writeError(ctx, connection, id, "audio_unavailable", "Аудиоустройство недоступно")
+		}
+		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		return wsjson.Write(writeCtx, connection, map[string]any{"version": protocol.Version, "type": "volume_state", "payload": state})
+	}
+	if config.Volume != nil {
+		if err := publishVolume("", 0, nil); err != nil {
+			return err
+		}
+	}
 	for {
 		messageType, data, err := connection.Read(ctx)
 		if err != nil {
@@ -133,7 +147,21 @@ func readCommands(ctx context.Context, connection *websocket.Conn, sink CommandS
 			continue
 		}
 
-		if err := sink.Handle(ctx, command); err != nil {
+		if config.Volume != nil {
+			switch p := command.Payload.(type) {
+			case protocol.VolumePayload:
+				if err := publishVolume(command.ID, p.Delta, nil); err != nil {
+					return err
+				}
+				continue
+			case protocol.MutePayload:
+				if err := publishVolume(command.ID, 0, &p.Muted); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		if err := config.Sink.Handle(ctx, command); err != nil {
 			if writeErr := writeError(ctx, connection, command.ID, "command_failed", "command could not be processed"); writeErr != nil {
 				return fmt.Errorf("write command error: %w", writeErr)
 			}

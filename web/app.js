@@ -5,6 +5,13 @@
   const input = document.querySelector("#text-input");
   const controls = [...document.querySelectorAll("button")];
   const encoder = new TextEncoder();
+  const mute = document.querySelector("#mute");
+  const level = document.querySelector("#level");
+  let muted = false;
+  mute.onclick = () => send("mute", { muted: !muted });
+  document.querySelectorAll("[data-volume]").forEach(button => {
+    button.onclick = () => send("volume", { delta: Number(button.dataset.volume) });
+  });
 
   let socket;
   let reconnectAttempt = 0;
@@ -14,6 +21,8 @@
     status.textContent = connected ? "Подключено" : "Нет связи";
     status.classList.toggle("connected", connected);
     controls.forEach((control) => { control.disabled = !connected; });
+    mute.disabled = true;
+    level.textContent = "—";
   }
 
   function connect() {
@@ -38,6 +47,12 @@
     socket.addEventListener("error", () => socket.close());
     socket.addEventListener("message", (event) => {
       const response = JSON.parse(event.data);
+      if (response.type === "volume_state") {
+        muted = response.payload.muted;
+        level.textContent = response.payload.level + "%";
+        mute.textContent = muted ? "Включить звук" : "Выключить звук";
+        mute.disabled = false;
+      }
       if (response.type === "error") message.textContent = response.payload.message;
     });
   }

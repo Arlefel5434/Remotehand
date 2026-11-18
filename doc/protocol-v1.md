@@ -28,6 +28,10 @@ Successful Commands are not acknowledged.
 
 ## Commands
 
+On connection and after a successful volume or mute command the Agent sends
+`{"version":1,"type":"volume_state","payload":{"level":50,"muted":false}}`.
+The level is a percentage read from the current default playback endpoint.
+
 | Type | Payload | Limits |
 |---|---|---|
 | `move` | `{"dx":12,"dy":-4}` | integers from -200 to 200 |

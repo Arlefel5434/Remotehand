@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Arlefel5434/Remotehand/internal/input"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 // Config defines the public HTTP endpoint and shutdown behavior.
 type Config struct {
+	Volume          input.VolumeController
 	ListenAddress   string
 	Version         string
 	ShutdownTimeout time.Duration

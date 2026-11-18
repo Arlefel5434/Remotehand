@@ -37,6 +37,7 @@ func run() error {
 	defer stop()
 
 	config := server.Config{
+		Volume:          adapter,
 		ListenAddress:   envOrDefault("REMOTEHAND_LISTEN_ADDR", ":8080"),
 		Version:         version,
 		ShutdownTimeout: 5 * time.Second,

@@ -31,6 +31,7 @@ type KeyboardController interface {
 }
 
 type Adapter interface {
+	VolumeController
 	PointerController
 	KeyboardController
 	Name() string
@@ -44,4 +45,4 @@ func (namedAdapter) Click(Button) error    { return nil }
 func (namedAdapter) SendText(string) error { return nil }
 func (namedAdapter) PressKey(Key) error    { return nil }
 
-func mockAdapter() Adapter { return namedAdapter("mock") }
+func mockAdapter() Adapter { return &mockDevice{namedAdapter: "mock", state: VolumeState{Level: 50}} }
