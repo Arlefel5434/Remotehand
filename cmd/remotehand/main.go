@@ -46,6 +46,7 @@ func run() error {
 	}
 	config.Sink = server.CommandDispatcher{
 		Pointer:     adapter,
+		Keyboard:    adapter,
 		Fallback:    server.LoggingSink{Logger: config.Logger},
 		Sensitivity: sensitivity,
 	}

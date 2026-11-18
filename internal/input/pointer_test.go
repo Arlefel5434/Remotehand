@@ -14,4 +14,10 @@ func TestMockPointer(t *testing.T) {
 	if err := adapter.Click(ButtonLeft); err != nil {
 		t.Fatalf("Click(): %v", err)
 	}
+	if err := adapter.SendText("Привет 👋"); err != nil {
+		t.Fatalf("SendText(): %v", err)
+	}
+	if err := adapter.PressKey(KeyEnter); err != nil {
+		t.Fatalf("PressKey(): %v", err)
+	}
 }

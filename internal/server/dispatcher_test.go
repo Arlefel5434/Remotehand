@@ -12,6 +12,8 @@ import (
 type fakePointer struct {
 	dx, dy  int
 	button  input.Button
+	text    string
+	key     input.Key
 	moveErr error
 }
 
@@ -25,6 +27,16 @@ func (p *fakePointer) Click(button input.Button) error {
 	return nil
 }
 
+func (p *fakePointer) SendText(text string) error {
+	p.text = text
+	return nil
+}
+
+func (p *fakePointer) PressKey(key input.Key) error {
+	p.key = key
+	return nil
+}
+
 type countingSink struct{ calls int }
 
 func (s *countingSink) Handle(context.Context, protocol.Command) error {
@@ -35,7 +47,7 @@ func (s *countingSink) Handle(context.Context, protocol.Command) error {
 func TestCommandDispatcherMovesWithSensitivityAndClamp(t *testing.T) {
 	t.Parallel()
 	pointer := &fakePointer{}
-	dispatcher := CommandDispatcher{Pointer: pointer, Fallback: &countingSink{}, Sensitivity: 1.5}
+	dispatcher := testDispatcher(pointer, &countingSink{}, 1.5)
 
 	err := dispatcher.Handle(context.Background(), protocol.Command{
 		Type:    protocol.TypeMove,
@@ -52,7 +64,7 @@ func TestCommandDispatcherMovesWithSensitivityAndClamp(t *testing.T) {
 func TestCommandDispatcherClicks(t *testing.T) {
 	t.Parallel()
 	pointer := &fakePointer{}
-	dispatcher := CommandDispatcher{Pointer: pointer, Fallback: &countingSink{}, Sensitivity: 1}
+	dispatcher := testDispatcher(pointer, &countingSink{}, 1)
 
 	err := dispatcher.Handle(context.Background(), protocol.Command{
 		Type:    protocol.TypeClick,
@@ -69,9 +81,9 @@ func TestCommandDispatcherClicks(t *testing.T) {
 func TestCommandDispatcherForwardsOtherCommands(t *testing.T) {
 	t.Parallel()
 	fallback := &countingSink{}
-	dispatcher := CommandDispatcher{Pointer: &fakePointer{}, Fallback: fallback, Sensitivity: 1}
+	dispatcher := testDispatcher(&fakePointer{}, fallback, 1)
 
-	if err := dispatcher.Handle(context.Background(), protocol.Command{Type: protocol.TypeText}); err != nil {
+	if err := dispatcher.Handle(context.Background(), protocol.Command{Type: protocol.TypeVolume}); err != nil {
 		t.Fatalf("Handle(): %v", err)
 	}
 	if fallback.calls != 1 {
@@ -84,6 +96,7 @@ func TestCommandDispatcherReturnsPointerError(t *testing.T) {
 	want := errors.New("send input failed")
 	dispatcher := CommandDispatcher{
 		Pointer:     &fakePointer{moveErr: want},
+		Keyboard:    &fakePointer{},
 		Fallback:    &countingSink{},
 		Sensitivity: 1,
 	}
@@ -93,5 +106,31 @@ func TestCommandDispatcherReturnsPointerError(t *testing.T) {
 	})
 	if !errors.Is(err, want) {
 		t.Fatalf("Handle() error = %v, want %v", err, want)
+	}
+}
+
+func TestCommandDispatcherSendsTextAndKeys(t *testing.T) {
+	t.Parallel()
+	controller := &fakePointer{}
+	dispatcher := testDispatcher(controller, &countingSink{}, 1)
+
+	if err := dispatcher.Handle(context.Background(), protocol.Command{
+		Type: protocol.TypeText, Payload: protocol.TextPayload{Value: "Привет 👋"},
+	}); err != nil {
+		t.Fatalf("Handle(text): %v", err)
+	}
+	if err := dispatcher.Handle(context.Background(), protocol.Command{
+		Type: protocol.TypeKey, Payload: protocol.KeyPayload{Key: "enter"},
+	}); err != nil {
+		t.Fatalf("Handle(key): %v", err)
+	}
+	if controller.text != "Привет 👋" || controller.key != input.KeyEnter {
+		t.Fatalf("text = %q, key = %q", controller.text, controller.key)
+	}
+}
+
+func testDispatcher(controller *fakePointer, fallback CommandSink, sensitivity float64) CommandDispatcher {
+	return CommandDispatcher{
+		Pointer: controller, Keyboard: controller, Fallback: fallback, Sensitivity: sensitivity,
 	}
 }

@@ -37,7 +37,7 @@ type mouseInput struct {
 type windowsInput struct {
 	Type    uint32
 	Padding uint32
-	Mouse   mouseInput
+	Data    [32]byte
 }
 
 func newWindowsPointer() (Adapter, error) {
@@ -50,10 +50,7 @@ func newWindowsPointer() (Adapter, error) {
 func (windowsPointer) Name() string { return "windows" }
 
 func (windowsPointer) Move(dx, dy int) error {
-	return sendMouseInputs([]windowsInput{{
-		Type:  inputMouse,
-		Mouse: mouseInput{DX: int32(dx), DY: int32(dy), Flags: mouseEventMove},
-	}})
+	return sendWindowsInputs([]windowsInput{newMouseInput(int32(dx), int32(dy), mouseEventMove)})
 }
 
 func (windowsPointer) Click(button Button) error {
@@ -66,13 +63,19 @@ func (windowsPointer) Click(button Button) error {
 	default:
 		return fmt.Errorf("unsupported pointer button %q", button)
 	}
-	return sendMouseInputs([]windowsInput{
-		{Type: inputMouse, Mouse: mouseInput{Flags: down}},
-		{Type: inputMouse, Mouse: mouseInput{Flags: up}},
+	return sendWindowsInputs([]windowsInput{
+		newMouseInput(0, 0, down),
+		newMouseInput(0, 0, up),
 	})
 }
 
-func sendMouseInputs(inputs []windowsInput) error {
+func newMouseInput(dx, dy int32, flags uint32) windowsInput {
+	value := windowsInput{Type: inputMouse}
+	*(*mouseInput)(unsafe.Pointer(&value.Data[0])) = mouseInput{DX: dx, DY: dy, Flags: flags}
+	return value
+}
+
+func sendWindowsInputs(inputs []windowsInput) error {
 	if len(inputs) == 0 {
 		return nil
 	}

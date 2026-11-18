@@ -11,12 +11,13 @@ import (
 
 type CommandDispatcher struct {
 	Pointer     input.PointerController
+	Keyboard    input.KeyboardController
 	Fallback    CommandSink
 	Sensitivity float64
 }
 
 func (d CommandDispatcher) Handle(ctx context.Context, command protocol.Command) error {
-	if d.Pointer == nil || d.Fallback == nil {
+	if d.Pointer == nil || d.Keyboard == nil || d.Fallback == nil {
 		return fmt.Errorf("dispatcher dependencies are required")
 	}
 	if d.Sensitivity < 0.1 || d.Sensitivity > 3 {
@@ -36,6 +37,18 @@ func (d CommandDispatcher) Handle(ctx context.Context, command protocol.Command)
 			return fmt.Errorf("click command has unexpected payload %T", command.Payload)
 		}
 		return d.Pointer.Click(input.Button(payload.Button))
+	case protocol.TypeText:
+		payload, ok := command.Payload.(protocol.TextPayload)
+		if !ok {
+			return fmt.Errorf("text command has unexpected payload %T", command.Payload)
+		}
+		return d.Keyboard.SendText(payload.Value)
+	case protocol.TypeKey:
+		payload, ok := command.Payload.(protocol.KeyPayload)
+		if !ok {
+			return fmt.Errorf("key command has unexpected payload %T", command.Payload)
+		}
+		return d.Keyboard.PressKey(input.Key(payload.Key))
 	default:
 		return d.Fallback.Handle(ctx, command)
 	}

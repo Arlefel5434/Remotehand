@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	webui "github.com/Arlefel5434/Remotehand/web"
 )
 
 // Config defines the public HTTP endpoint and shutdown behavior.
@@ -36,6 +38,7 @@ func NewHandler(connectionContext context.Context, config Config) http.Handler {
 	mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
 		handleWebSocket(connectionContext, config, gate, w, r)
 	})
+	mux.Handle("GET /", http.FileServerFS(webui.Files))
 	return mux
 }
 

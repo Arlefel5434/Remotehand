@@ -44,3 +44,7 @@ $env:REMOTEHAND_POINTER_SENSITIVITY = "1.0"
 Sensitivity accepts values from `0.1` to `3.0`. Only enable native input on a
 trusted private network during development.
 
+Open `http://<windows-ip>:8080/` on the phone, tap the text area to use the
+phone's system keyboard, then send the text to the currently focused Windows
+application. The Controller reconnects automatically if the connection drops.
+
