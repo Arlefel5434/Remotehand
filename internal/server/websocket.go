@@ -111,8 +111,8 @@ func heartbeat(ctx context.Context, connection *websocket.Conn, interval, timeou
 }
 
 func readCommands(ctx context.Context, connection *websocket.Conn, config Config) error {
-	publishVolume := func(id string, delta int, muted *bool) error {
-		state, err := config.Volume.UpdateVolume(delta, muted)
+	publishVolume := func(id string, delta int, level *int, muted *bool) error {
+		state, err := config.Volume.UpdateVolume(delta, level, muted)
 		if err != nil {
 			return writeError(ctx, connection, id, "audio_unavailable", "Аудиоустройство недоступно")
 		}
@@ -121,7 +121,7 @@ func readCommands(ctx context.Context, connection *websocket.Conn, config Config
 		return wsjson.Write(writeCtx, connection, map[string]any{"version": protocol.Version, "type": "volume_state", "payload": state})
 	}
 	if config.Volume != nil {
-		if err := publishVolume("", 0, nil); err != nil {
+		if err := publishVolume("", 0, nil, nil); err != nil {
 			return err
 		}
 	}
@@ -150,12 +150,12 @@ func readCommands(ctx context.Context, connection *websocket.Conn, config Config
 		if config.Volume != nil {
 			switch p := command.Payload.(type) {
 			case protocol.VolumePayload:
-				if err := publishVolume(command.ID, p.Delta, nil); err != nil {
+				if err := publishVolume(command.ID, p.Delta, p.Level, nil); err != nil {
 					return err
 				}
 				continue
 			case protocol.MutePayload:
-				if err := publishVolume(command.ID, 0, &p.Muted); err != nil {
+				if err := publishVolume(command.ID, 0, nil, &p.Muted); err != nil {
 					return err
 				}
 				continue

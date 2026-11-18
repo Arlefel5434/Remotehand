@@ -51,4 +51,8 @@ func TestControllerVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(100, true)
+	if err := conn.Write(ctx, websocket.MessageText, []byte(`{"version":1,"type":"volume","payload":{"level":37}}`)); err != nil {
+		t.Fatal(err)
+	}
+	check(37, true)
 }

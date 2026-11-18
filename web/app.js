@@ -9,9 +9,22 @@
   const level = document.querySelector("#level");
   let muted = false;
   mute.onclick = () => send("mute", { muted: !muted });
-  document.querySelectorAll("[data-volume]").forEach(button => {
-    button.onclick = () => send("volume", { delta: Number(button.dataset.volume) });
-  });
+  const slider = document.querySelector("#volume-slider");
+  let confirmedLevel = 0;
+  let editingVolume = false;
+  slider.oninput = () => {
+    editingVolume = true;
+    level.textContent = slider.value + "%";
+  };
+  slider.onchange = () => {
+    editingVolume = false;
+    send("volume", { level: slider.valueAsNumber });
+  };
+  slider.onpointercancel = () => {
+    editingVolume = false;
+    slider.value = confirmedLevel;
+    level.textContent = confirmedLevel + "%";
+  };
 
   let socket;
   let reconnectAttempt = 0;
@@ -101,6 +114,8 @@
     status.classList.toggle("connected", connected);
     controls.forEach((control) => { control.disabled = !connected; });
     mute.disabled = true;
+    slider.disabled = true;
+    editingVolume = false;
     level.textContent = "—";
   }
 
@@ -128,11 +143,19 @@
       const response = JSON.parse(event.data);
       if (response.type === "volume_state") {
         muted = response.payload.muted;
-        level.textContent = response.payload.level + "%";
+        confirmedLevel = response.payload.level;
+        slider.disabled = false;
+        if (!editingVolume) {
+          slider.value = confirmedLevel;
+          level.textContent = confirmedLevel + "%";
+        }
         mute.textContent = muted ? "Включить звук" : "Выключить звук";
         mute.disabled = false;
       }
-      if (response.type === "error") message.textContent = response.payload.message;
+      if (response.type === "error") {
+        message.textContent = response.payload.message;
+        if (response.payload.code === "audio_unavailable") slider.onpointercancel();
+      }
     });
   }
 

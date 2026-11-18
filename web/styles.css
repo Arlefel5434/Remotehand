@@ -65,6 +65,8 @@ button {
 button:active { transform: translateY(1px); }
 button:disabled { opacity: .45; }
 .primary { width: 100%; background: #2563eb; }
+#volume-slider { width: 100%; min-height: 44px; accent-color: #60a5fa; }
+#volume-slider + button { flex: none; }
 #pad {
   display: grid;
   align-content: center;

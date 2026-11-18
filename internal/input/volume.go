@@ -5,9 +5,9 @@ type VolumeState struct {
 	Muted bool `json:"muted"`
 }
 
-// UpdateVolume reads the endpoint when delta is zero and muted is nil.
+// UpdateVolume reads the endpoint when no change is requested.
 type VolumeController interface {
-	UpdateVolume(delta int, muted *bool) (VolumeState, error)
+	UpdateVolume(delta int, level *int, muted *bool) (VolumeState, error)
 }
 
 type mockDevice struct {
@@ -15,8 +15,11 @@ type mockDevice struct {
 	state VolumeState
 }
 
-func (m *mockDevice) UpdateVolume(delta int, muted *bool) (VolumeState, error) {
+func (m *mockDevice) UpdateVolume(delta int, level *int, muted *bool) (VolumeState, error) {
 	m.state.Level = min(100, max(0, m.state.Level+delta))
+	if level != nil {
+		m.state.Level = *level
+	}
 	if muted != nil {
 		m.state.Muted = *muted
 	}

@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-func (windowsPointer) UpdateVolume(delta int, muted *bool) (state VolumeState, err error) {
+func (windowsPointer) UpdateVolume(delta int, level *int, muted *bool) (state VolumeState, err error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err = ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
@@ -33,7 +33,11 @@ func (windowsPointer) UpdateVolume(delta int, muted *bool) (state VolumeState, e
 	}
 	defer endpoint.Release()
 	var scalar float32
-	if delta != 0 {
+	if level != nil {
+		if err = endpoint.SetMasterVolumeLevelScalar(float32(*level)/100, nil); err != nil {
+			return
+		}
+	} else if delta != 0 {
 		if err = endpoint.GetMasterVolumeLevelScalar(&scalar); err != nil {
 			return
 		}

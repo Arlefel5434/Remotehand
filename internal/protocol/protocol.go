@@ -41,7 +41,10 @@ type ScrollPayload struct{ Steps int }
 type ClickPayload struct{ Button string }
 type TextPayload struct{ Value string }
 type KeyPayload struct{ Key string }
-type VolumePayload struct{ Delta int }
+type VolumePayload struct {
+	Delta int
+	Level *int
+}
 type MutePayload struct{ Muted bool }
 
 type Violation struct {
@@ -191,9 +194,16 @@ func parseKey(data []byte) (any, *Violation) {
 func parseVolume(data []byte) (any, *Violation) {
 	var value struct {
 		Delta *int `json:"delta"`
+		Level *int `json:"level"`
 	}
-	if err := decodeStrict(data, &value); err != nil || value.Delta == nil {
-		return nil, invalidPayload("volume requires integer delta")
+	if err := decodeStrict(data, &value); err != nil || (value.Delta == nil) == (value.Level == nil) {
+		return nil, invalidPayload("volume requires either delta or level")
+	}
+	if value.Level != nil {
+		if *value.Level < 0 || *value.Level > 100 {
+			return nil, invalidPayload("level must be between 0 and 100")
+		}
+		return VolumePayload{Level: value.Level}, nil
 	}
 	if *value.Delta == 0 || *value.Delta < -10 || *value.Delta > 10 {
 		return nil, invalidPayload("delta must be between -10 and 10 and cannot be zero")
