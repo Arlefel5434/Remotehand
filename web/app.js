@@ -30,6 +30,28 @@
   let reconnectAttempt = 0;
   let reconnectTimer;
   const pad = document.querySelector("#pad");
+  let sensitivity = 1;
+  function bindSetting(id, outputId, apply) {
+    const control = document.getElementById(id);
+    const output = document.getElementById(outputId);
+    const key = "remotehand." + id;
+    try {
+      const saved = Number(localStorage.getItem(key));
+      if (saved >= Number(control.min) && saved <= Number(control.max)) control.value = saved;
+    } catch { /* Storage may be unavailable in private browsing. */ }
+    function update() {
+      output.value = control.value + "%";
+      apply(control.valueAsNumber / 100);
+    }
+    update();
+    control.oninput = update;
+    control.onchange = () => {
+      update();
+      try { localStorage.setItem(key, control.value); } catch { /* Keep the current setting in memory. */ }
+    };
+  }
+  bindSetting("sensitivity", "speed-value", value => { sensitivity = value; });
+  bindSetting("pad-height", "height-value", value => pad.style.setProperty("--pad-scale", value));
   let gesture = null;
   const fingers = new Map();
   let scrollDistance = 0;
@@ -44,13 +66,13 @@
   function flushMotion() {
     frame = 0;
     if (!gesture || !gesture.moved) return;
-    const dx = Math.round(gesture.x - gesture.sentX);
-    const dy = Math.round(gesture.y - gesture.sentY);
+    const dx = Math.round((gesture.x - gesture.sentX) * sensitivity);
+    const dy = Math.round((gesture.y - gesture.sentY) * sensitivity);
     if (dx || dy) {
       const limit = n => Math.max(-200, Math.min(200, n));
       send("move", { dx: limit(dx), dy: limit(dy) });
-      gesture.sentX += dx;
-      gesture.sentY += dy;
+      gesture.sentX += dx / sensitivity;
+      gesture.sentY += dy / sensitivity;
     }
   }
   function track(event) {
