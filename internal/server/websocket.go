@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"log"
@@ -21,7 +22,7 @@ type CommandSink interface {
 type LoggingSink struct{ Logger *log.Logger }
 
 func (s LoggingSink) Handle(_ context.Context, command protocol.Command) error {
-	s.Logger.Printf("command type=%s id=%q", command.Type, command.ID)
+	s.Logger.Printf("command type=%s", command.Type)
 	return nil
 }
 
@@ -47,15 +48,19 @@ func (g *connectionGate) release() {
 }
 
 func handleWebSocket(parent context.Context, config Config, gate *connectionGate, w http.ResponseWriter, r *http.Request) {
+	if config.Token == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Sec-WebSocket-Protocol")), []byte("remotehand."+config.Token)) != 1 {
+		http.Error(w, "pairing required", http.StatusUnauthorized)
+		return
+	}
 	if !gate.acquire() {
 		http.Error(w, "a controller is already connected", http.StatusConflict)
 		return
 	}
 	defer gate.release()
 
-	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
+	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled, Subprotocols: []string{"remotehand." + config.Token}})
 	if err != nil {
-		config.Logger.Printf("websocket accept failed: %v", err)
+		config.Logger.Print("websocket accept failed")
 		return
 	}
 	defer connection.CloseNow()
@@ -77,12 +82,12 @@ func handleWebSocket(parent context.Context, config Config, gate *connectionGate
 	case err = <-readErr:
 		cancel()
 		if err != nil && websocket.CloseStatus(err) != websocket.StatusNormalClosure {
-			config.Logger.Printf("connection closed: %v", err)
+			config.Logger.Print("connection closed")
 		}
 	case heartbeatError := <-pingErr:
 		cancel()
 		if heartbeatError != nil {
-			config.Logger.Printf("connection heartbeat failed: %v", heartbeatError)
+			config.Logger.Print("connection heartbeat failed")
 		}
 		_ = connection.CloseNow()
 		<-readErr
@@ -125,6 +130,7 @@ func readCommands(ctx context.Context, connection *websocket.Conn, config Config
 			return err
 		}
 	}
+	limit := newCommandBudget(time.Now())
 	for {
 		messageType, data, err := connection.Read(ctx)
 		if err != nil {
@@ -133,6 +139,10 @@ func readCommands(ctx context.Context, connection *websocket.Conn, config Config
 		if messageType != websocket.MessageText {
 			_ = connection.Close(websocket.StatusInvalidFramePayloadData, "text messages are required")
 			return errors.New("received non-text WebSocket message")
+		}
+		if !limit.allow(time.Now()) {
+			_ = connection.Close(websocket.StatusPolicyViolation, "command rate exceeded")
+			return errors.New("command rate exceeded")
 		}
 
 		command, violation := protocol.Parse(data)
@@ -173,4 +183,22 @@ func writeError(ctx context.Context, connection *websocket.Conn, id, code, messa
 	writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	return wsjson.Write(writeCtx, connection, protocol.NewErrorEnvelope(id, code, message))
+}
+
+type commandBudget struct {
+	credit float64
+	last   time.Time
+}
+
+const commandsPerSecond = 120
+
+func newCommandBudget(now time.Time) commandBudget { return commandBudget{commandsPerSecond, now} }
+func (b *commandBudget) allow(now time.Time) bool {
+	b.credit = min(float64(commandsPerSecond), b.credit+now.Sub(b.last).Seconds()*commandsPerSecond)
+	b.last = now
+	if b.credit < 1 {
+		return false
+	}
+	b.credit--
+	return true
 }

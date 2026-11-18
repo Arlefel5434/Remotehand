@@ -2,6 +2,12 @@
 
 ## Transport
 
+The Controller reads the run credential from the QR URL fragment and offers
+`remotehand.<credential>` as the WebSocket subprotocol. Missing or invalid
+credentials receive HTTP 401 before the Agent reserves the connection slot.
+The Agent accepts 120 commands per second per connection with a burst of 120.
+Exceeding the budget closes the connection with code 1008.
+
 - Endpoint: `GET /ws` upgraded to WebSocket.
 - Messages are UTF-8 JSON text frames, at most 8 KiB.
 - Compression is disabled.

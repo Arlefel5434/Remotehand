@@ -27,6 +27,15 @@
   };
 
   let socket;
+  let pairing = new URLSearchParams(location.hash.slice(1)).get("pair");
+  try {
+    if (pairing) {
+      sessionStorage.setItem("remotehand.pair", pairing);
+      history.replaceState(null, "", location.pathname + location.search);
+    } else {
+      pairing = sessionStorage.getItem("remotehand.pair");
+    }
+  } catch { /* Keep the scanned credential in memory. */ }
   let reconnectAttempt = 0;
   let reconnectTimer;
   const pad = document.querySelector("#pad");
@@ -143,11 +152,15 @@
 
   function connect() {
     clearTimeout(reconnectTimer);
+    if (!pairing || !/^[A-Za-z0-9_-]{16,128}$/.test(pairing)) {
+      status.textContent = "Сканируйте QR-код на ноутбуке";
+      return;
+    }
     if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
 
     status.textContent = "Подключение…";
     const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-    socket = new WebSocket(`${scheme}//${location.host}/ws`);
+    socket = new WebSocket(`${scheme}//${location.host}/ws`, "remotehand." + pairing);
 
     socket.addEventListener("open", () => {
       reconnectAttempt = 0;
@@ -156,6 +169,7 @@
     });
     socket.addEventListener("close", () => {
       setConnected(false);
+      status.textContent = "Нет связи · после перезапуска сканируйте новый QR";
       const delay = Math.min(500 * (2 ** reconnectAttempt), 10000);
       reconnectAttempt += 1;
       reconnectTimer = setTimeout(connect, delay);

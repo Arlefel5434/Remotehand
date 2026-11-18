@@ -9,14 +9,13 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-func showPhoneLinks(addr net.Addr) {
+func showPhoneLinks(addr net.Addr, token string) {
 	bound := addr.(*net.TCPAddr)
 	if !bound.IP.IsUnspecified() {
 		if bound.IP.IsLoopback() {
 			fmt.Println("Сервер доступен только на ноутбуке:", bound)
-			return
 		}
-		printPhoneLink("Remotehand", bound.IP.String(), bound.Port)
+		printPhoneLink("Remotehand", bound.IP.String(), bound.Port, token)
 		return
 	}
 	interfaces, err := net.Interfaces()
@@ -35,7 +34,7 @@ func showPhoneLinks(addr net.Addr) {
 			if err != nil || ip.To4() == nil || !ip.IsGlobalUnicast() {
 				continue
 			}
-			printPhoneLink(iface.Name, ip.String(), bound.Port)
+			printPhoneLink(iface.Name, ip.String(), bound.Port, token)
 			found = true
 		}
 	}
@@ -44,10 +43,10 @@ func showPhoneLinks(addr net.Addr) {
 	}
 }
 
-func printPhoneLink(network, host string, port int) {
+func printPhoneLink(network, host string, port int, token string) {
 	url := "http://" + net.JoinHostPort(host, strconv.Itoa(port)) + "/"
 	fmt.Printf("\n%s  %s\n", network, url)
-	code, err := qrcode.New(url, qrcode.Medium)
+	code, err := qrcode.New(url+"#pair="+token, qrcode.Medium)
 	if err != nil {
 		fmt.Println(err)
 		return

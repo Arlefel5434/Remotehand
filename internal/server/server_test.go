@@ -82,6 +82,7 @@ func (discardSink) Handle(context.Context, protocol.Command) error { return nil 
 
 func testConfig(version string, sink CommandSink) Config {
 	return Config{
+		Token:        "test-token",
 		Version:      version,
 		PingInterval: time.Hour,
 		PongTimeout:  time.Second,

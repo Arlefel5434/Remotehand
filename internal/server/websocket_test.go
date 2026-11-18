@@ -31,7 +31,7 @@ func TestWebSocketReportsNonFatalErrorAndKeepsConnection(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -71,13 +71,13 @@ func TestWebSocketRejectsSecondConnection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	first, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	first, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial first connection: %v", err)
 	}
 	defer first.CloseNow()
 
-	second, response, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	second, response, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if second != nil {
 		second.CloseNow()
 	}
@@ -98,7 +98,7 @@ func TestWebSocketRejectsForeignOrigin(t *testing.T) {
 	defer cancel()
 
 	header := http.Header{"Origin": []string{"http://evil.example"}}
-	connection, response, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{HTTPHeader: header})
+	connection, response, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{HTTPHeader: header, Subprotocols: []string{"remotehand.test-token"}})
 	if connection != nil {
 		connection.CloseNow()
 	}
@@ -117,7 +117,7 @@ func TestWebSocketClosesOnMalformedEnvelope(t *testing.T) {
 	defer testServer.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestConnectionStaysOpenAcrossHeartbeats(t *testing.T) {
 	defer testServer.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestWebSocketClosesOversizedMessage(t *testing.T) {
 	defer testServer.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestAgentShutdownClosesConnection(t *testing.T) {
 	defer testServer.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), nil)
+	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -233,4 +233,44 @@ func TestLoggingSinkDoesNotLogTextPayload(t *testing.T) {
 
 func wsURL(httpURL string) string {
 	return "ws" + strings.TrimPrefix(httpURL, "http") + "/ws"
+}
+
+func TestPairingRequiredBeforeUpgrade(t *testing.T) {
+	srv := httptest.NewServer(NewHandler(context.Background(), testConfig("dev", discardSink{})))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	for _, offered := range [][]string{nil, {"remotehand.previous-run"}} {
+		conn, response, err := websocket.Dial(ctx, wsURL(srv.URL), &websocket.DialOptions{Subprotocols: offered})
+		if conn != nil {
+			conn.CloseNow()
+		}
+		if err == nil || response == nil || response.StatusCode != http.StatusUnauthorized {
+			t.Fatal("expected HTTP 401 before upgrade")
+		}
+	}
+	conn, _, err := websocket.Dial(ctx, wsURL(srv.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.CloseNow()
+	if conn.Subprotocol() != "remotehand.test-token" {
+		t.Fatal("browser subprotocol negotiation failed")
+	}
+}
+
+func TestCommandBudget(t *testing.T) {
+	now := time.Now()
+	b := newCommandBudget(now)
+	for range commandsPerSecond {
+		if !b.allow(now) {
+			t.Fatal("early rejection")
+		}
+	}
+	if b.allow(now) {
+		t.Fatal("exceeded burst")
+	}
+	if !b.allow(now.Add(time.Second)) {
+		t.Fatal("budget did not refill")
+	}
 }

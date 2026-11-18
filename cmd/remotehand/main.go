@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +42,7 @@ func run() error {
 	defer stop()
 
 	config := server.Config{
+		Token:           rand.Text(),
 		Volume:          adapter,
 		ListenAddress:   envOrDefault("REMOTEHAND_LISTEN_ADDR", ":8080"),
 		Version:         version,
@@ -53,7 +58,26 @@ func run() error {
 		Sensitivity: sensitivity,
 	}
 	if runtime.GOOS == "windows" {
-		config.OnListening = showPhoneLinks
+		config.OnListening = func(addr net.Addr) {
+			if info, err := os.Stdout.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+				showPhoneLinks(addr, config.Token)
+				fmt.Println("Введите disconnect и нажмите Enter, чтобы завершить сеанс и остановить агент.")
+			}
+			go func() {
+				scanner := bufio.NewScanner(os.Stdin)
+				for scanner.Scan() {
+					if strings.EqualFold(strings.TrimSpace(scanner.Text()), "disconnect") {
+						stop()
+						return
+					}
+				}
+			}()
+		}
+	} else if path := os.Getenv("REMOTEHAND_PAIR_FILE"); path != "" {
+		if err := os.WriteFile(path, []byte(config.Token), 0600); err != nil {
+			return err
+		}
+		defer os.Remove(path)
 	}
 	log.Printf("starting Remotehand version=%s address=%s input_adapter=%s sensitivity=%.2f", config.Version, config.ListenAddress, adapter.Name(), sensitivity)
 

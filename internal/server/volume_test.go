@@ -22,7 +22,7 @@ func TestControllerVolume(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	conn, _, err := websocket.Dial(ctx, wsURL(srv.URL), nil)
+	conn, _, err := websocket.Dial(ctx, wsURL(srv.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatal(err)
 	}

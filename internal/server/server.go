@@ -16,6 +16,7 @@ import (
 
 // Config defines the public HTTP endpoint and shutdown behavior.
 type Config struct {
+	Token           string
 	OnListening     func(net.Addr)
 	Volume          input.VolumeController
 	ListenAddress   string
@@ -97,6 +98,9 @@ func Run(ctx context.Context, config Config) error {
 }
 
 func validateConfig(config Config) error {
+	if config.Token == "" {
+		return errors.New("pairing token required")
+	}
 	if config.ListenAddress == "" {
 		return errors.New("listen address is required")
 	}
