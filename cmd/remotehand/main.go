@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -26,6 +28,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	sensitivity, err := pointerSensitivity(os.Getenv("REMOTEHAND_POINTER_SENSITIVITY"))
+	if err != nil {
+		return err
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -38,10 +44,25 @@ func run() error {
 		PongTimeout:     5 * time.Second,
 		Logger:          log.Default(),
 	}
-	config.Sink = server.LoggingSink{Logger: config.Logger}
-	log.Printf("starting Remotehand version=%s address=%s input_adapter=%s", config.Version, config.ListenAddress, adapter.Name())
+	config.Sink = server.CommandDispatcher{
+		Pointer:     adapter,
+		Fallback:    server.LoggingSink{Logger: config.Logger},
+		Sensitivity: sensitivity,
+	}
+	log.Printf("starting Remotehand version=%s address=%s input_adapter=%s sensitivity=%.2f", config.Version, config.ListenAddress, adapter.Name(), sensitivity)
 
 	return server.Run(ctx, config)
+}
+
+func pointerSensitivity(value string) (float64, error) {
+	if value == "" {
+		return 1, nil
+	}
+	sensitivity, err := strconv.ParseFloat(value, 64)
+	if err != nil || sensitivity < 0.1 || sensitivity > 3 {
+		return 0, fmt.Errorf("REMOTEHAND_POINTER_SENSITIVITY must be a number between 0.1 and 3.0")
+	}
+	return sensitivity, nil
 }
 
 func envOrDefault(name, fallback string) string {

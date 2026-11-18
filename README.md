@@ -32,3 +32,15 @@ The executable is written to `dist/remotehand.exe`. Docker is used for the
 toolchain and mock server; the Agent itself must run natively in Windows to
 access the interactive desktop session.
 
+Until authenticated Sessions are implemented, the Windows Agent defaults to
+the safe mock adapter. Native pointer control must be enabled explicitly:
+
+```powershell
+$env:REMOTEHAND_INPUT_MODE = "native"
+$env:REMOTEHAND_POINTER_SENSITIVITY = "1.0"
+.\dist\remotehand.exe
+```
+
+Sensitivity accepts values from `0.1` to `3.0`. Only enable native input on a
+trusted private network during development.
+
