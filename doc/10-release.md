@@ -1,4 +1,4 @@
-# Этап 9. Сборка, приёмка и релиз MVP
+# Этап 10. Сборка, приёмка и релиз MVP
 
 ## Результат этапа
 
@@ -7,8 +7,8 @@
 
 ## Шаги
 
-1. Добавить версию сборки и команду создания `dist/remotehand.exe`.
-2. Запустить форматирование, статический анализ, тесты и Windows-сборку.
+1. Добавить версию сборки и контейнерную команду создания `dist/remotehand.exe`.
+2. Через Docker запустить форматирование, статический анализ, тесты и сборку.
 3. Проверить приложение на чистом запуске Windows.
 4. Обновить README: запуск, Firewall, подключение, ограничения и остановка.
 5. Выполнить ручной приёмочный сценарий ниже.
@@ -18,10 +18,10 @@
 ## Автоматическая проверка
 
 ```bash
-gofmt -w .
-go vet ./...
-go test ./...
-GOOS=windows GOARCH=amd64 go build -o dist/remotehand.exe ./cmd/remotehand
+docker compose config
+docker compose run --rm dev sh -c 'gofmt -w . && go vet ./... && go test ./...'
+docker compose run --rm build-windows
+test -f dist/remotehand.exe
 git status --short
 ```
 

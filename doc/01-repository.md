@@ -2,35 +2,33 @@
 
 ## Результат этапа
 
-Минимальный Go-проект собирается в WSL для Windows, тестируется и хранится в Git.
+Минимальный Go-проект хранится в Git и подготовлен к контейнерной разработке.
 
 ## Шаги
 
-1. Проверить `go version` и `git --version`.
+1. Проверить `docker version`, `docker compose version` и `git --version`.
 2. Инициализировать модуль: `go mod init github.com/<owner>/remotehand`.
 3. Создать `cmd/remotehand/main.go` с минимальной функцией `main`.
 4. Создать каталоги `internal/input`, `internal/protocol`, `internal/server`,
    `web`, `scripts` и `bin`.
-5. Добавить `Makefile` или скрипты для тестов и Windows-сборки.
+5. Добавить `Makefile`, команды которого вызывают Docker Compose.
 6. Выполнить `git init`, создать ветку `main` и первый коммит.
 7. После получения URL добавить `origin` и выполнить push.
 
 ## Проверка
 
 ```bash
-go test ./...
-go build ./cmd/remotehand
-GOOS=windows GOARCH=amd64 go build -o bin/remotehand.exe ./cmd/remotehand
+docker version
+docker compose version
 git status --short
 ```
 
-Ожидается: тесты и обе сборки успешны, `remotehand.exe` существует, рабочее
-дерево после коммита чистое.
+Ожидается: Docker доступен из WSL, Compose установлен, рабочее дерево после
+коммита чистое. Сборка проверяется на следующем этапе.
 
 ## Критерий готовности
 
-Проект воспроизводимо собирается, а ветка `main` доступна в удалённом
-репозитории.
+Структура проекта создана, Docker доступен, ветка `main` опубликована.
 
 ## Коммит
 
