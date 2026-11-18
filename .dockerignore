@@ -1,0 +1,8 @@
+.git
+.gitignore
+bin
+dist
+work
+*.log
+.idea
+.vscode

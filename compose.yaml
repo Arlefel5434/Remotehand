@@ -1,0 +1,43 @@
+name: remotehand
+
+x-dev-service: &dev-service
+  build:
+    context: .
+    target: dev
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+    - go-mod-cache:/go/pkg/mod
+    - go-build-cache:/home/remotehand/.cache/go-build
+
+services:
+  dev:
+    <<: *dev-service
+
+  server:
+    build:
+      context: .
+      target: server
+    environment:
+      REMOTEHAND_INPUT_MODE: mock
+      REMOTEHAND_LISTEN_ADDR: :8080
+    ports:
+      - "0.0.0.0:8080:8080"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  build-windows:
+    <<: *dev-service
+    command:
+      - sh
+      - -c
+      - >-
+        mkdir -p dist &&
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+        go build -trimpath -ldflags='-s -w' -o dist/remotehand.exe ./cmd/remotehand
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
