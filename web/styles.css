@@ -84,6 +84,8 @@ button:disabled { opacity: .45; }
 }
 .mouse-buttons { margin: .6rem 0 1.5rem; }
 .pad-settings { margin-bottom: .75rem; }
+.shortcuts { margin-top: 1rem; }
+.shortcut-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin-top: .65rem; }
 .pad-settings summary { width: fit-content; cursor: pointer; padding: .65rem 1rem; background: #334155; border-radius: .85rem; }
 .pad-settings label { display: flex; justify-content: space-between; margin-top: .75rem; }
 .pad-settings input { width: 100%; min-height: 44px; accent-color: #60a5fa; }

@@ -38,7 +38,7 @@ The level is a percentage read from the current default playback endpoint.
 | `scroll` | `{"steps":-1}` | vertical wheel steps, −8 to 8 excluding zero. Positive scrolls up. |
 | `click` | `{"button":"left"}` | `left` or `right` |
 | `text` | `{"value":"Привет"}` | valid UTF-8, at most 2048 bytes |
-| `key` | `{"key":"enter"}` | `enter`, `backspace`, or `escape` |
+| `key` | `{"key":"enter"}` | `enter`, `backspace`, `escape`, `restore_tab`, `new_tab`, `next_tab`, `find` |
 | `volume` | `{"delta":5}` | non-zero integer from -10 to 10 |
 | `mute` | `{"muted":true}` | boolean |
 

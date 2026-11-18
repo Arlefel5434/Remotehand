@@ -184,10 +184,10 @@ func parseKey(data []byte) (any, *Violation) {
 		return nil, invalidPayload("key requires key")
 	}
 	switch *value.Key {
-	case "enter", "backspace", "escape":
+	case "enter", "backspace", "escape", "restore_tab", "new_tab", "next_tab", "find":
 		return KeyPayload{Key: *value.Key}, nil
 	default:
-		return nil, invalidPayload("key must be enter, backspace, or escape")
+		return nil, invalidPayload("unsupported key")
 	}
 }
 

@@ -39,21 +39,34 @@ func (windowsPointer) SendText(text string) error {
 }
 
 func (windowsPointer) PressKey(key Key) error {
-	var virtualKey uint16
+	const ctrl, shift, tab = 0x11, 0x10, 0x09
+	var keys []uint16
 	switch key {
 	case KeyEnter:
-		virtualKey = virtualKeyEnter
+		keys = []uint16{virtualKeyEnter}
 	case KeyBackspace:
-		virtualKey = virtualKeyBackspace
+		keys = []uint16{virtualKeyBackspace}
 	case KeyEscape:
-		virtualKey = virtualKeyEscape
+		keys = []uint16{virtualKeyEscape}
+	case "restore_tab":
+		keys = []uint16{ctrl, shift, 'T'}
+	case "new_tab":
+		keys = []uint16{ctrl, 'T'}
+	case "next_tab":
+		keys = []uint16{ctrl, tab}
+	case "find":
+		keys = []uint16{ctrl, 'F'}
 	default:
 		return fmt.Errorf("unsupported key %q", key)
 	}
-	return sendWindowsInputs([]windowsInput{
-		newKeyboardInput(virtualKey, 0, 0),
-		newKeyboardInput(virtualKey, 0, keyEventKeyUp),
-	})
+	events := make([]windowsInput, 0, 2*len(keys))
+	for _, vk := range keys {
+		events = append(events, newKeyboardInput(vk, 0, 0))
+	}
+	for i := len(keys) - 1; i >= 0; i-- {
+		events = append(events, newKeyboardInput(keys[i], 0, keyEventKeyUp))
+	}
+	return sendWindowsInputs(events)
 }
 
 func newKeyboardInput(virtualKey, scanCode uint16, flags uint32) windowsInput {
