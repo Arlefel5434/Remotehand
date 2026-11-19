@@ -19,7 +19,7 @@ Run the mock HTTP server:
 
 ```bash
 make server
-curl http://localhost:8080/health
+curl http://localhost:18080/health
 ```
 
 Build the native Windows Agent:
@@ -32,7 +32,7 @@ The executable is written to `dist/remotehand.exe`. Docker is used for the
 toolchain. At startup the Windows console displays a QR code and URL for each
 listening LAN address. Scan the Wi-Fi or Ethernet code with the phone camera.
 For automatic address selection set `REMOTEHAND_LISTEN_ADDR=:18080` (or leave
-it unset for port 8080). With automatic selection the Agent waits while offline
+it unset for port 18080). With automatic selection the Agent waits while offline
 and checks Wi-Fi and Ethernet every two seconds. After connecting or changing
 LAN address, scan the QR displayed in the same console window.
 An explicit interface address limits the Agent to that address.
@@ -45,15 +45,15 @@ access the interactive desktop session.
 
 Распакуйте архив `dist/Remotehand-windows-amd64.zip` в постоянную папку, например
 `C:\Program Files\Remotehand`, и откройте `remotehand.exe` обычным двойным щелчком.
-По умолчанию агент управляет рабочим столом и слушает порт 8080. Для тестирования
+По умолчанию агент управляет рабочим столом и слушает порт 18080. Для тестирования
 можно выбрать `REMOTEHAND_INPUT_MODE=mock`. Контрольные суммы находятся в
 `dist/SHA256SUMS`.
 
 Для указанной папки и порта можно один раз выполнить в PowerShell от администратора:
 
 ```powershell
-New-NetFirewallRule -Name RemotehandPrivate8080 -DisplayName 'Remotehand (Private LAN)' `
-  -Direction Inbound -Action Allow -Profile Private -Protocol TCP -LocalPort 8080 `
+New-NetFirewallRule -Name RemotehandPrivate18080 -DisplayName 'Remotehand (Private LAN)' `
+  -Direction Inbound -Action Allow -Profile Private -Protocol TCP -LocalPort 18080 `
   -RemoteAddress LocalSubnet -Program "$env:ProgramFiles\Remotehand\remotehand.exe"
 ```
 

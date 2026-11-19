@@ -44,7 +44,7 @@ func run() error {
 	config := server.Config{
 		Token:           rand.Text(),
 		Volume:          adapter,
-		ListenAddress:   envOrDefault("REMOTEHAND_LISTEN_ADDR", ":8080"),
+		ListenAddress:   envOrDefault("REMOTEHAND_LISTEN_ADDR", ":18080"),
 		Version:         version,
 		ShutdownTimeout: 5 * time.Second,
 		PingInterval:    20 * time.Second,

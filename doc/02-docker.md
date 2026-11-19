@@ -24,7 +24,7 @@ Windows host
 3. Создать `compose.yaml` с сервисами `dev`, `server` и `build-windows`.
 4. Подключать исходники в `dev`, но использовать именованные volumes для Go
    build/module cache.
-5. В `server` открыть порт `8080` и включить mock input adapter.
+5. В `server` открыть порт `18080` и включить mock input adapter.
 6. В `build-windows` установить `GOOS=windows`, `GOARCH=amd64` и складывать
    результат в `dist/`.
 7. Обернуть частые команды в `Makefile`: `make test`, `make check`, `make dev`,
@@ -49,7 +49,7 @@ test -f dist/remotehand.exe
 docker compose up --build server
 ```
 
-`http://localhost:8080/health` должен отвечать, а `docker compose down` —
+`http://localhost:18080/health` должен отвечать, а `docker compose down` —
 останавливать окружение без оставшихся контейнеров.
 
 ## Критерий готовности

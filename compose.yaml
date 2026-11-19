@@ -24,7 +24,7 @@ services:
     tmpfs:
       - /run/pair:uid=1000,gid=1000,mode=0700
     ports:
-      - "0.0.0.0:8080:8080"
+      - "0.0.0.0:18080:18080"
     read_only: true
     security_opt:
       - no-new-privileges:true

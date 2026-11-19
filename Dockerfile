@@ -29,6 +29,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 FROM scratch AS server
 
 COPY --from=server-build /tmp/remotehand /remotehand
-EXPOSE 8080
+EXPOSE 18080
 USER 1000:1000
 ENTRYPOINT ["/remotehand"]
