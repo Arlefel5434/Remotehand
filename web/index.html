@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#111827">
     <title>Remotehand</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -16,6 +18,11 @@
         </div>
         <span id="status" class="status" aria-live="polite">Подключение…</span>
       </header>
+      <form id="pair-form" hidden>
+        <label for="pair-link">Ссылка из QR-кода ноутбука</label>
+        <input type="password" id="pair-link" autocomplete="off" placeholder="Вставьте скопированную ссылку" required>
+        <button type="submit">Подключиться</button>
+      </form>
       <details class="pad-settings">
         <summary>Настройки</summary>
         <label for="sensitivity">Чувствительность курсора <output id="speed-value" for="sensitivity">100%</output></label>

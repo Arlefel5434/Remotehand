@@ -3,7 +3,7 @@
   const message = document.querySelector("#message");
   const form = document.querySelector("#text-form");
   const input = document.querySelector("#text-input");
-  const controls = [...document.querySelectorAll("button")];
+  const controls = [...document.querySelectorAll("button:not(#pair-form button)")];
   const encoder = new TextEncoder();
   const mute = document.querySelector("#mute");
   const level = document.querySelector("#level");
@@ -37,6 +37,22 @@
     }
   } catch { /* Keep the scanned credential in memory. */ }
   let reconnectAttempt = 0;
+  const pairForm = document.querySelector("#pair-form");
+  const pairLink = document.querySelector("#pair-link");
+  pairForm.onsubmit = event => {
+    event.preventDefault();
+    let url;
+    try { url = new URL(pairLink.value.trim()); } catch {}
+    const token = url && new URLSearchParams(url.hash.slice(1)).get("pair");
+    if (url?.origin !== location.origin || !/^[A-Za-z0-9_-]{16,128}$/.test(token || "")) {
+      pairLink.setCustomValidity("Нужна ссылка из QR-кода для этого адреса ноутбука.");
+      pairLink.reportValidity();
+      return;
+    }
+    location.replace(url.origin + "/#pair=" + token);
+    location.reload();
+  };
+  pairLink.oninput = () => pairLink.setCustomValidity("");
   let reconnectTimer;
   const pad = document.querySelector("#pad");
   let sensitivity = 1;
@@ -154,6 +170,7 @@
     clearTimeout(reconnectTimer);
     if (!pairing || !/^[A-Za-z0-9_-]{16,128}$/.test(pairing)) {
       status.textContent = "Сканируйте QR-код на ноутбуке";
+      pairForm.hidden = false;
       return;
     }
     if (socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(socket.readyState)) return;
@@ -166,9 +183,11 @@
       reconnectAttempt = 0;
       message.textContent = "";
       setConnected(true);
+      pairForm.hidden = true;
     });
     socket.addEventListener("close", () => {
       setConnected(false);
+      pairForm.hidden = false;
       status.textContent = "Нет связи · после перезапуска сканируйте новый QR";
       const delay = Math.min(500 * (2 ** reconnectAttempt), 10000);
       reconnectAttempt += 1;
@@ -233,5 +252,8 @@
   });
   window.addEventListener("online", connect);
   setConnected(false);
+  if (window.isSecureContext && "serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
   connect();
 })();

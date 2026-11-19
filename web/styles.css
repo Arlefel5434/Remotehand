@@ -37,6 +37,11 @@ h2 { margin-top: 2rem; font-size: 1rem; }
   font-size: .85rem;
 }
 .status.connected { background: #166534; }
+#pair-form { margin: 1rem 0; }
+#pair-link { width: 100%; font: inherit; padding: .75rem; margin-bottom: .5rem; }
+@media (orientation: landscape) {
+  main { padding-inline: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right)); }
+}
 
 label { display: block; margin-bottom: .5rem; font-weight: 650; }
 textarea {
