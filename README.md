@@ -32,7 +32,9 @@ The executable is written to `dist/remotehand.exe`. Docker is used for the
 toolchain. At startup the Windows console displays a QR code and URL for each
 listening LAN address. Scan the Wi-Fi or Ethernet code with the phone camera.
 For automatic address selection set `REMOTEHAND_LISTEN_ADDR=:18080` (or leave
-it unset for port 8080). Restart after changing networks to print fresh codes.
+it unset for port 8080). With automatic selection the Agent waits while offline
+and checks Wi-Fi and Ethernet every two seconds. After connecting or changing
+LAN address, scan the QR displayed in the same console window.
 An explicit interface address limits the Agent to that address.
 
 Docker is used for the

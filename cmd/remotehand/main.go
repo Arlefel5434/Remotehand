@@ -60,7 +60,7 @@ func run() error {
 	if runtime.GOOS == "windows" {
 		config.OnListening = func(addr net.Addr) {
 			if info, err := os.Stdout.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
-				showPhoneLinks(addr, config.Token)
+				go watchPhoneLinks(ctx, addr.(*net.TCPAddr), config.Token)
 				fmt.Println("Введите disconnect и нажмите Enter, чтобы завершить сеанс и остановить агент.")
 			}
 			go func() {

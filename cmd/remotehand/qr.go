@@ -1,46 +1,83 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-func showPhoneLinks(addr net.Addr, token string) {
-	bound := addr.(*net.TCPAddr)
-	if !bound.IP.IsUnspecified() {
-		if bound.IP.IsLoopback() {
-			fmt.Println("Сервер доступен только на ноутбуке:", bound)
-		}
-		printPhoneLink("Remotehand", bound.IP.String(), bound.Port, token)
+type phoneLink struct{ network, host string }
+
+func watchPhoneLinks(ctx context.Context, bound *net.TCPAddr, token string) {
+	if bound.IP.IsLoopback() {
+		fmt.Println("Сервер доступен только на ноутбуке:", bound)
 		return
 	}
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	monitorLinks(ctx, ticker.C, func() []phoneLink { return phoneLinks(bound.IP) }, func(links []phoneLink) {
+		if len(links) == 0 {
+			fmt.Println("Ожидание подключения к Wi-Fi или Ethernet…")
+			return
+		}
+		for _, link := range links {
+			printPhoneLink(link.network, link.host, bound.Port, token)
+		}
+	})
+}
+
+func monitorLinks(ctx context.Context, ticks <-chan time.Time, scan func() []phoneLink, display func([]phoneLink)) {
+	var previous map[phoneLink]bool
+	for {
+		links := scan()
+		current := make(map[phoneLink]bool, len(links))
+		var added []phoneLink
+		for _, link := range links {
+			if !previous[link] && !current[link] {
+				added = append(added, link)
+			}
+			current[link] = true
+		}
+		if len(added) > 0 || (len(current) == 0 && (previous == nil || len(previous) > 0)) {
+			display(added)
+		}
+		previous = current
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+		}
+	}
+}
+
+func phoneLinks(bound net.IP) []phoneLink {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Println("Не удалось определить адрес сети:", err)
-		return
+		return nil
 	}
-	found := false
+	var links []phoneLink
 	for _, iface := range interfaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if bound.IsUnspecified() && !physicalLAN(iface.Index) {
 			continue
 		}
 		addresses, _ := iface.Addrs()
 		for _, address := range addresses {
 			ip, _, err := net.ParseCIDR(address.String())
-			if err != nil || ip.To4() == nil || !ip.IsGlobalUnicast() {
+			if err != nil || !ip.IsGlobalUnicast() || (bound.IsUnspecified() && ip.To4() == nil) || (!bound.IsUnspecified() && !bound.Equal(ip)) {
 				continue
 			}
-			printPhoneLink(iface.Name, ip.String(), bound.Port, token)
-			found = true
+			links = append(links, phoneLink{iface.Name, ip.String()})
 		}
 	}
-	if !found {
-		fmt.Println("Подключите ноутбук к Wi-Fi или Ethernet и перезапустите Remotehand.")
-	}
+	return links
 }
 
 func printPhoneLink(network, host string, port int, token string) {
