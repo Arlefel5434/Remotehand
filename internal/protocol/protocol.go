@@ -21,13 +21,14 @@ const (
 type Type string
 
 const (
-	TypeMove   Type = "move"
-	TypeScroll Type = "scroll"
-	TypeClick  Type = "click"
-	TypeText   Type = "text"
-	TypeKey    Type = "key"
-	TypeVolume Type = "volume"
-	TypeMute   Type = "mute"
+	TypeMove      Type = "move"
+	TypeScroll    Type = "scroll"
+	TypeClick     Type = "click"
+	TypeText      Type = "text"
+	TypeKey       Type = "key"
+	TypeVolume    Type = "volume"
+	TypeGetVolume Type = "get_volume"
+	TypeMute      Type = "mute"
 )
 
 type Command struct {
@@ -125,6 +126,13 @@ func Parse(data []byte) (Command, *Violation) {
 		command.Payload, violation = parseKey(envelope.Payload)
 	case TypeVolume:
 		command.Payload, violation = parseVolume(envelope.Payload)
+	case TypeGetVolume:
+		var empty *struct{}
+		if err := decodeStrict(envelope.Payload, &empty); err != nil || empty == nil {
+			violation = invalidPayload("get_volume requires an empty object")
+		} else {
+			command.Payload = VolumePayload{}
+		}
 	case TypeMute:
 		command.Payload, violation = parseMute(envelope.Payload)
 	default:

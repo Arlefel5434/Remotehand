@@ -21,7 +21,7 @@ down:
 	docker compose down --remove-orphans
 
 build-windows:
-	docker compose run --rm build-windows
+	docker compose run --rm --build build-windows
 
 clean:
 	rm -rf dist

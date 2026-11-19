@@ -27,24 +27,33 @@ func (s LoggingSink) Handle(_ context.Context, command protocol.Command) error {
 }
 
 type connectionGate struct {
-	mu     sync.Mutex
-	active bool
+	mu       sync.Mutex
+	done     chan struct{}
+	stopping bool
 }
 
 func (g *connectionGate) acquire() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.active {
+	if g.done != nil || g.stopping {
 		return false
 	}
-	g.active = true
+	g.done = make(chan struct{})
 	return true
 }
 
 func (g *connectionGate) release() {
 	g.mu.Lock()
-	g.active = false
+	close(g.done)
+	g.done = nil
 	g.mu.Unlock()
+}
+
+func (g *connectionGate) stop() <-chan struct{} {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.stopping = true
+	return g.done
 }
 
 func handleWebSocket(parent context.Context, config Config, gate *connectionGate, w http.ResponseWriter, r *http.Request) {
@@ -174,6 +183,13 @@ func readCommands(ctx context.Context, connection *websocket.Conn, config Config
 		if err := config.Sink.Handle(ctx, command); err != nil {
 			if writeErr := writeError(ctx, connection, command.ID, "command_failed", "command could not be processed"); writeErr != nil {
 				return fmt.Errorf("write command error: %w", writeErr)
+			}
+		} else if command.Type == protocol.TypeText && command.ID != "" {
+			writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			err := wsjson.Write(writeCtx, connection, map[string]any{"version": protocol.Version, "type": "text_ack", "id": command.ID, "payload": struct{}{}})
+			cancel()
+			if err != nil {
+				return err
 			}
 		}
 	}

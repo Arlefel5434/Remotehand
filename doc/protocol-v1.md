@@ -30,7 +30,9 @@ Exceeding the budget closes the connection with code 1008.
 ```
 
 Unknown envelope fields are rejected. `id` is optional and echoed in an error.
-Successful Commands are not acknowledged.
+After the input adapter accepts a text command with an ID, the Agent replies with
+`{"version":1,"type":"text_ack","id":"the-command-id","payload":{}}`.
+If confirmation is lost, the Controller keeps the draft for manual review.
 
 ## Commands
 
@@ -46,6 +48,8 @@ The level is a percentage read from the current default playback endpoint.
 | `text` | `{"value":"Привет"}` | valid UTF-8, at most 2048 bytes |
 | `key` | `{"key":"enter"}` | `enter`, `backspace`, `escape`, `restore_tab`, `new_tab`, `next_tab`, `find` |
 | `volume` | `{"delta":5}` | non-zero integer from -10 to 10 |
+| `volume` | `{"level":37}` | absolute percentage from 0 to 100 |
+| `get_volume` | `{}` | reads the current endpoint and returns `volume_state` or `audio_unavailable` |
 | `mute` | `{"muted":true}` | boolean |
 
 ## Error envelope

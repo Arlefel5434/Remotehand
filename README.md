@@ -41,16 +41,31 @@ Docker is used for the
 toolchain and mock server; the Agent itself must run natively in Windows to
 access the interactive desktop session.
 
-The Windows Agent defaults to the mock adapter. Enable native input explicitly:
+## Запуск на Windows
+
+Распакуйте архив `dist/Remotehand-windows-amd64.zip` в постоянную папку, например
+`C:\Program Files\Remotehand`, и откройте `remotehand.exe` обычным двойным щелчком.
+По умолчанию агент управляет рабочим столом и слушает порт 8080. Для тестирования
+можно выбрать `REMOTEHAND_INPUT_MODE=mock`. Контрольные суммы находятся в
+`dist/SHA256SUMS`.
+
+Для указанной папки и порта можно один раз выполнить в PowerShell от администратора:
 
 ```powershell
-$env:REMOTEHAND_INPUT_MODE = "native"
-$env:REMOTEHAND_POINTER_SENSITIVITY = "1.0"
-.\dist\remotehand.exe
+New-NetFirewallRule -Name RemotehandPrivate8080 -DisplayName 'Remotehand (Private LAN)' `
+  -Direction Inbound -Action Allow -Profile Private -Protocol TCP -LocalPort 8080 `
+  -RemoteAddress LocalSubnet -Program "$env:ProgramFiles\Remotehand\remotehand.exe"
 ```
 
-Sensitivity accepts values from `0.1` to `3.0`. Only enable native input on a
-trusted private network during development.
+При обновлении закройте агент и замените файл в той же папке. Если вы выбрали
+другой путь или порт, укажите его и в правиле. Для работы используйте доверенную
+локальную сеть с профилем Private. Запускайте сам агент с обычными правами.
+Параметр `REMOTEHAND_POINTER_SENSITIVITY` принимает значения от 0.1 до 3.0.
+
+При смене Wi-Fi или переходе на точку доступа отсканируйте новый QR-код.
+Если старая страница открыта, в форму сопряжения можно вставить новую ссылку.
+Если ярлык iPhone указывает на недоступный адрес, откройте новый QR в Safari
+и добавьте страницу на домашний экран заново.
 
 Scan the QR on the laptop, tap the text area to use the
 phone's system keyboard, then send the text to the currently focused Windows

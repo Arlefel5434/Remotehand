@@ -4,7 +4,8 @@ ARG GO_VERSION=1.27.4
 
 FROM golang:${GO_VERSION}-alpine AS dev
 
-RUN addgroup -g 1000 remotehand \
+RUN apk add --no-cache zip \
+    && addgroup -g 1000 remotehand \
     && adduser -D -u 1000 -G remotehand remotehand \
     && mkdir -p /workspace /home/remotehand/go/pkg/mod /home/remotehand/.cache/go-build \
     && chown -R remotehand:remotehand /workspace /home/remotehand

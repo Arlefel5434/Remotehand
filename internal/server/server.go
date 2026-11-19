@@ -34,12 +34,15 @@ type healthResponse struct {
 }
 
 func NewHandler(connectionContext context.Context, config Config) http.Handler {
+	return newHandler(connectionContext, config, &connectionGate{})
+}
+
+func newHandler(connectionContext context.Context, config Config, gate *connectionGate) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(healthResponse{Status: "ok", Version: config.Version})
 	})
-	gate := &connectionGate{}
 	mux.HandleFunc("GET /ws", func(w http.ResponseWriter, r *http.Request) {
 		handleWebSocket(connectionContext, config, gate, w, r)
 	})
@@ -55,9 +58,10 @@ func Run(ctx context.Context, config Config) error {
 	connectionContext, closeConnections := context.WithCancel(context.Background())
 	defer closeConnections()
 
+	gate := &connectionGate{}
 	httpServer := &http.Server{
 		Addr:              config.ListenAddress,
-		Handler:           NewHandler(connectionContext, config),
+		Handler:           newHandler(connectionContext, config, gate),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -83,11 +87,19 @@ func Run(ctx context.Context, config Config) error {
 	case <-ctx.Done():
 	}
 
+	connectionDone := gate.stop()
 	closeConnections()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), config.ShutdownTimeout)
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shut down HTTP server: %w", err)
+	}
+	if connectionDone != nil {
+		select {
+		case <-connectionDone:
+		case <-shutdownCtx.Done():
+			return fmt.Errorf("close controller connection: %w", shutdownCtx.Err())
+		}
 	}
 
 	err = <-serverErr

@@ -3,6 +3,18 @@
   const message = document.querySelector("#message");
   const form = document.querySelector("#text-form");
   const input = document.querySelector("#text-input");
+  const sendText = document.querySelector("#send-text");
+  let pendingText;
+  let textTimer;
+  let audioTimer;
+  function finishText(acknowledged, notice) {
+    clearTimeout(textTimer);
+    pendingText = undefined;
+    input.readOnly = false;
+    sendText.disabled = socket?.readyState !== WebSocket.OPEN;
+    if (acknowledged) input.value = "";
+    message.textContent = notice;
+  }
   const controls = [...document.querySelectorAll("button:not(#pair-form button)")];
   const encoder = new TextEncoder();
   const mute = document.querySelector("#mute");
@@ -44,13 +56,14 @@
     let url;
     try { url = new URL(pairLink.value.trim()); } catch {}
     const token = url && new URLSearchParams(url.hash.slice(1)).get("pair");
-    if (url?.origin !== location.origin || !/^[A-Za-z0-9_-]{16,128}$/.test(token || "")) {
-      pairLink.setCustomValidity("Нужна ссылка из QR-кода для этого адреса ноутбука.");
+    if (!url || !["http:", "https:"].includes(url.protocol) || url.username || url.password ||
+        url.pathname !== "/" || url.search || !/^[A-Za-z0-9_-]{16,128}$/.test(token || "")) {
+      pairLink.setCustomValidity("Вставьте полную ссылку из QR-кода ноутбука.");
       pairLink.reportValidity();
       return;
     }
     location.replace(url.origin + "/#pair=" + token);
-    location.reload();
+    if (url.origin === location.origin) location.reload();
   };
   pairLink.oninput = () => pairLink.setCustomValidity("");
   let reconnectTimer;
@@ -181,11 +194,12 @@
 
     socket.addEventListener("open", () => {
       reconnectAttempt = 0;
-      message.textContent = "";
       setConnected(true);
       pairForm.hidden = true;
     });
     socket.addEventListener("close", () => {
+      clearTimeout(audioTimer);
+      if (pendingText) finishText(false, "Связь прервалась. Проверьте текст на ноутбуке перед повторной отправкой.");
       setConnected(false);
       pairForm.hidden = false;
       status.textContent = "Нет связи · после перезапуска сканируйте новый QR";
@@ -196,7 +210,12 @@
     socket.addEventListener("error", () => socket.close());
     socket.addEventListener("message", (event) => {
       const response = JSON.parse(event.data);
+      if (pendingText && response.id === pendingText) {
+        if (response.type === "text_ack") finishText(true, "Текст отправлен");
+        if (response.type === "error") finishText(false, response.payload.message);
+      }
       if (response.type === "volume_state") {
+        clearTimeout(audioTimer);
         muted = response.payload.muted;
         confirmedLevel = response.payload.level;
         slider.disabled = false;
@@ -208,13 +227,20 @@
         mute.disabled = false;
       }
       if (response.type === "error") {
-        message.textContent = response.payload.message;
-        if (response.payload.code === "audio_unavailable") slider.onpointercancel();
+        if (response.payload.code === "audio_unavailable") {
+          editingVolume = false;
+          slider.disabled = mute.disabled = true;
+          level.textContent = "Устройство недоступно";
+          clearTimeout(audioTimer);
+          audioTimer = setTimeout(() => send("get_volume", {}), 3000);
+        } else {
+          message.textContent = response.payload.message;
+        }
       }
     });
   }
 
-  function send(type, payload) {
+  function send(type, payload, id = commandID()) {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       message.textContent = "Нет связи с ноутбуком";
       return false;
@@ -222,7 +248,7 @@
     socket.send(JSON.stringify({
       version: 1,
       type,
-      id: commandID(),
+      id,
       payload,
     }));
     return true;
@@ -236,14 +262,18 @@
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const value = input.value;
-    if (!value) return;
+    if (!value || pendingText) return;
     if (encoder.encode(value).byteLength > 2048) {
       message.textContent = "Текст должен занимать не более 2048 байт";
       return;
     }
-    if (send("text", { value })) {
-      input.value = "";
-      input.focus();
+    const id = commandID();
+    if (send("text", { value }, id)) {
+      pendingText = id;
+      input.readOnly = true;
+      sendText.disabled = true;
+      message.textContent = "Ожидание подтверждения…";
+      textTimer = setTimeout(() => finishText(false, "Подтверждение не получено. Проверьте текст на ноутбуке перед повторной отправкой."), 10000);
     }
   });
 

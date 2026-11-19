@@ -32,13 +32,18 @@ services:
 
   build-windows:
     <<: *dev-service
+    environment:
+      REMOTEHAND_VERSION: ${REMOTEHAND_VERSION:-v0.1.0-rc.1}
     command:
       - sh
       - -c
       - >-
         mkdir -p dist &&
         CGO_ENABLED=0 GOOS=windows GOARCH=amd64
-        go build -trimpath -ldflags='-s -w' -o dist/remotehand.exe ./cmd/remotehand
+        go build -trimpath -ldflags="-s -w -X main.version=$$REMOTEHAND_VERSION" -o dist/remotehand.exe ./cmd/remotehand &&
+        cd dist &&
+        zip -j -X -q Remotehand-windows-amd64.zip remotehand.exe ../README.md &&
+        sha256sum remotehand.exe Remotehand-windows-amd64.zip > SHA256SUMS
 
 volumes:
   go-mod-cache:

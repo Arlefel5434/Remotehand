@@ -55,4 +55,15 @@ func TestControllerVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	check(37, true)
+	if err := conn.Write(ctx, websocket.MessageText, []byte(`{"version":1,"type":"get_volume","payload":{}}`)); err != nil {
+		t.Fatal(err)
+	}
+	check(37, true)
+	if err := conn.Write(ctx, websocket.MessageText, []byte(`{"version":1,"type":"text","id":"draft","payload":{"value":"пример"}}`)); err != nil {
+		t.Fatal(err)
+	}
+	var ack struct{ Type, ID string }
+	if err := wsjson.Read(ctx, conn, &ack); err != nil || ack.Type != "text_ack" || ack.ID != "draft" {
+		t.Fatalf("text acknowledgement: %+v, %v", ack, err)
+	}
 }

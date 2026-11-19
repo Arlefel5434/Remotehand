@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -195,21 +196,48 @@ func TestWebSocketClosesOversizedMessage(t *testing.T) {
 func TestAgentShutdownClosesConnection(t *testing.T) {
 	t.Parallel()
 
-	connectionContext, stopConnections := context.WithCancel(context.Background())
-	testServer := httptest.NewServer(NewHandler(connectionContext, testConfig("dev", discardSink{})))
-	defer testServer.Close()
+	agentCtx, stopConnections := context.WithCancel(context.Background())
+	defer stopConnections()
+	config := testConfig("dev", discardSink{})
+	config.ListenAddress = "127.0.0.1:0"
+	config.ShutdownTimeout = 2 * time.Second
+	listening := make(chan net.Addr, 1)
+	config.OnListening = func(addr net.Addr) { listening <- addr }
+	stopped := make(chan error, 1)
+	go func() { stopped <- Run(agentCtx, config) }()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	connection, _, err := websocket.Dial(ctx, wsURL(testServer.URL), &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
+	var addr net.Addr
+	select {
+	case addr = <-listening:
+	case err := <-stopped:
+		t.Fatalf("startup failed: %v", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	connection, _, err := websocket.Dial(ctx, "ws://"+addr.String()+"/ws", &websocket.DialOptions{Subprotocols: []string{"remotehand.test-token"}})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
 	defer connection.CloseNow()
 
 	stopConnections()
+	select {
+	case err := <-stopped:
+		t.Fatalf("Run returned before close handshake: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
 	_, _, err = connection.Read(ctx)
 	if websocket.CloseStatus(err) != websocket.StatusGoingAway {
 		t.Fatalf("close status = %d, error = %v", websocket.CloseStatus(err), err)
+	}
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
 	}
 }
 
